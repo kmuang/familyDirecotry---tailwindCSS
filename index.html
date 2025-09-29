@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title> Family Directory — Name · Address · Phone</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <header class="bg-white shadow sticky top-0">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <h1 class="text-lg font-semibold">Family Directory</h1>
+      <div class="flex items-center gap-2">
+        <input id="search" type="text" placeholder="Search Name..." class="px-3 py-2 rounded border border-slate-200 bg-white focus:outline-none" />
+        <button id="addBtn" class="px-3 py-2 rounded bg-indigo-600 text-white">Add</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+    <div class="bg-white rounded shadow overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="text-left px-4 py-3">Name</th>
+            <th class="text-left px-4 py-3">Address</th>
+            <th class="text-left px-4 py-3">Phone</th>
+            <th class="text-right px-4 py-3">&nbsp;</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-3 text-sm text-slate-500">Showing <span id="count">0</span> entries.</p>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="fixed inset-0 hidden items-center justify-center z-50">
+    <div class="absolute inset-0 bg-black/40" onclick="closeModal()"></div>
+    <div class="bg-white rounded-lg shadow-lg z-10 w-full max-w-md">
+      <div class="px-4 py-3 border-b">
+        <h2 id="modalTitle" class="text-lg font-medium">Add Entry</h2>
+      </div>
+      <div class="p-4">
+        <form id="form" class="space-y-3" onsubmit="return false;">
+          <input id="name" class="w-full px-3 py-2 border rounded" placeholder="Full name" required />
+          <input id="address" class="w-full px-3 py-2 border rounded" placeholder="Address" />
+          <input id="phone" class="w-full px-3 py-2 border rounded" placeholder="Phone number" />
+        </form>
+      </div>
+      <div class="flex justify-end gap-2 px-4 py-3 border-t">
+        <button onclick="closeModal()" class="px-3 py-2 rounded border">Cancel</button>
+        <button id="save" class="px-3 py-2 rounded bg-indigo-600 text-white">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let entries = [
+      {id:1, name:'Paul Pau Cin', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'},
+      {id:2, name:'Ning Khan Hau', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'}, 
+      {id:3, name:'Pum Hawm Thang', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'},
+      {id:4, name:'Pau Sian Thawn', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'},
+      {id:5, name:'Thang Suan Gin', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'}, 
+      {id:6, name:'Khup Sian Muang', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'},
+      {id:7, name:'Zam Sian Cing', address:'1905 W 117th Ct S Jenks, OK ', phone:'(918) 927 6267'},
+    ];
+
+    const tbody = document.getElementById('tbody');
+    const countEl = document.getElementById('count');
+    const search = document.getElementById('search');
+
+    function render(list){
+      tbody.innerHTML = '';
+      if(list.length === 0){
+        tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">No entries found.</td></tr>';
+      } else {
+        list.forEach(e => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="px-4 py-3 align-top">${escapeHtml(e.name)}</td>
+            <td class="px-4 py-3 align-top">${escapeHtml(e.address)}</td>
+            <td class="px-4 py-3 align-top">${escapeHtml(e.phone)}</td>
+            <td class="px-4 py-3 align-top text-right">
+              <button class="text-sm px-2 py-1 border rounded mr-2" onclick="editEntry(${e.id})">Edit</button>
+              <button class="text-sm px-2 py-1 border rounded text-red-600" onclick="deleteEntry(${e.id})">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+      countEl.textContent = list.length;
+    }
+
+    function escapeHtml(text){
+      if(!text) return '';
+      return text.replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; });
+    }
+
+    function applyFilter(){
+      const q = search.value.trim().toLowerCase();
+      if(!q) return render(entries);
+      const filtered = entries.filter(e => (e.name||'').toLowerCase().includes(q) || (e.address||'').toLowerCase().includes(q));
+      render(filtered);
+    }
+
+    search.addEventListener('input', applyFilter);
+
+    // Modal logic
+    const modal = document.getElementById('modal');
+    const addBtn = document.getElementById('addBtn');
+    const saveBtn = document.getElementById('save');
+    let editingId = null;
+
+    function openModal(title, data=null){
+      document.getElementById('modalTitle').textContent = title;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('name').value = data?.name || '';
+      document.getElementById('address').value = data?.address || '';
+      document.getElementById('phone').value = data?.phone || '';
+      editingId = data?.id || null;
+    }
+
+    function closeModal(){
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+      document.getElementById('form').reset();
+      editingId = null;
+    }
+
+    addBtn.addEventListener('click', ()=> openModal('Add Entry'));
+
+    saveBtn.addEventListener('click', ()=>{
+      const name = document.getElementById('name').value.trim();
+      if(!name) return alert('Name is required');
+      const payload = {
+        id: editingId || Date.now(),
+        name,
+        address: document.getElementById('address').value.trim(),
+        phone: document.getElementById('phone').value.trim()
+      };
+      if(editingId){
+        entries = entries.map(e => e.id === editingId ? payload : e);
+      } else {
+        entries.unshift(payload);
+      }
+      closeModal();
+      applyFilter();
+    });
+
+    function deleteEntry(id){
+      if(!confirm('Delete this entry?')) return;
+      entries = entries.filter(e => e.id !== id);
+      applyFilter();
+    }
+
+    function editEntry(id){
+      const e = entries.find(x=>x.id===id);
+      if(!e) return;
+      openModal('Edit Entry', e);
+    }
+
+    // Initial render
+    render(entries);
+  </script>
+</body>
+</html>
